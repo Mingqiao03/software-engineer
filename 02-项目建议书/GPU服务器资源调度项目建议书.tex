@@ -1,0 +1,284 @@
+\documentclass[UTF8,10.5pt,a4paper,fontset=mac]{ctexart}
+
+\usepackage[a4paper,left=2.15cm,right=2.15cm,top=1.75cm,bottom=1.75cm]{geometry}
+\usepackage{array,booktabs,tabularx,longtable,multirow}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{setspace}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{accent}{HTML}{244A73}
+\definecolor{lightblue}{HTML}{EDF3F8}
+\definecolor{lightgray}{HTML}{F4F5F6}
+\definecolor{rulegray}{HTML}{AAB3BC}
+
+\setmainfont{Times New Roman}
+\setsansfont{Arial}
+\setCJKmainfont{Songti SC}
+\setCJKsansfont{Heiti SC}
+\setCJKmonofont{Songti SC}
+
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.15em}
+\linespread{1.18}
+\setlist[itemize]{leftmargin=2em,itemsep=0.05em,topsep=0.15em,parsep=0em}
+\setlist[enumerate]{leftmargin=2.2em,itemsep=0.05em,topsep=0.15em,parsep=0em}
+\setlength{\tabcolsep}{4.5pt}
+\renewcommand{\arraystretch}{1.18}
+
+\titleformat{\section}{\bfseries\sffamily\zihao{-3}\color{accent}}{\thesection}{0.55em}{}
+\titleformat{\subsection}{\bfseries\sffamily\zihao{4}}{\thesubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{0.8em}{0.35em}
+\titlespacing*{\subsection}{0pt}{0.45em}{0.2em}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small 软件需求工程课程项目建议书}
+\fancyhead[R]{\small GPU/服务器资源调度}
+\fancyfoot[C]{\small \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\setlength{\headheight}{14pt}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\newcommand{\infobox}[1]{%
+  \begin{center}
+  \colorbox{lightblue}{\parbox{0.94\linewidth}{\vspace{0.35em}#1\vspace{0.35em}}}
+  \end{center}}
+
+\begin{document}
+
+\begin{center}
+  {\sffamily\bfseries\zihao{2}\color{accent} 面向科研实验室的 GPU/服务器资源申请与公平调度系统}\\[0.35em]
+  {\sffamily\bfseries\zihao{3}需求分析及原型比较项目建议书}\\[0.75em]
+  \begin{tabular}{@{}ll@{}}
+    课程： & 软件需求工程（2026 秋季学期） \\
+    项目类型： & 硕士研究生工程型项目 \\
+    项目成员： & 徐天成、刘明桥 \\
+    文档日期： & 2026 年 10 月 15 日
+  \end{tabular}
+\end{center}
+
+\vspace{0.35em}
+\noindent\textcolor{accent}{\rule{\linewidth}{1.1pt}}
+
+\subsection*{摘要}
+
+本项目面向科研实验室共享 GPU 和服务器资源的申请、排队与使用管理场景。实验室中的计算资源数量、型号和显存配置有限，而不同成员的实验任务在资源规模、预计时长、截止时间和项目重要性方面存在差异。当前资源分配可能依赖共享表格、群内沟通、人工协调或简单的先到先得规则，由此可能产生申请信息不完整、排队状态不透明、紧急任务与普通任务冲突、长任务持续占用以及管理员协调成本较高等问题。上述问题均作为待验证假设，将通过真实访谈和现有流程分析进行确认。
+
+项目拟完成利益相关者分析、需求获取、需求建模、需求规格说明及需求追踪，并设计两个可演示的系统原型。原型 A 采用表格式申请与先到先得分配；原型 B 引入使用配额、任务优先级、候补队列和可解释调度。项目计划通过用户任务测试和模拟调度实验，从任务完成时间、平均等待时间、资源利用率、任务按时完成率、用户间分配差异、规则理解度及管理员工作量等方面比较两种方案，识别各自的适用情境、局限和风险，并根据评估结果修订需求。
+
+\noindent\textbf{关键词：} GPU 资源管理；服务器调度；公平分配；需求工程；原型评估
+
+\section{项目背景与核心问题}
+
+科研实验室中的深度学习训练、仿真计算和数据处理任务通常依赖共享 GPU 或服务器。资源使用者包括不同年级学生、不同研究方向成员以及承担不同项目任务的研究人员。用户既希望快速获得满足显存和运行时长要求的设备，又希望分配规则简单、透明且公平；管理员则需要保障服务器稳定、提高资源利用率、降低人工协调成本，并处理机器维护、任务失败、超时占用和突发紧急任务等异常情况。
+
+本项目首先调查实验室现行的申请与协调方式，重点验证以下初步问题：资源状态和排队信息是否透明；用户是否能够准确填写资源需求及预计时长；遇到论文截止或项目验收时如何处理紧急任务；长任务、任务提前结束和临时维护如何影响其他用户；人工调整是否保留依据和记录；不同角色如何理解“公平”。
+
+\infobox{\textbf{核心问题：}在 GPU/服务器资源有限、任务需求和运行时间不确定的情况下，如何在资源利用率、用户公平性、紧急任务保障、规则可解释性和管理员工作量之间取得合理平衡？}
+
+项目预期价值包括：帮助用户了解资源状态和等待原因；减少重复沟通及无效申请；帮助管理员统一处理冲突和异常；形成可追踪的分配依据；通过原型比较为实验室选择适当的资源管理方式提供证据。项目不预设复杂调度一定优于先到先得，而是分析两种机制在不同资源紧张程度和任务结构下的适用条件。
+
+\section{项目范围、系统边界与复杂度}
+
+\subsection{项目范围与系统边界}
+
+项目覆盖从用户提交资源申请到任务结束并更新记录的管理流程。主要范围包括：填写 GPU 型号、数量、预计时长及截止时间；校验申请信息和使用资格；形成预约时段或候补队列；展示状态、排名及主要分配理由；处理取消、超时、失败和机器维护；记录历史使用量与剩余配额；向用户和管理员发送状态通知。
+
+项目原型使用模拟账号、服务器和任务数据，不接触真实密码、密钥、IP 地址或敏感项目数据；不开发 GPU 驱动、容器平台或完整的 Slurm/Kubernetes 调度器，也不直接控制生产服务器。账号系统、集群调度器、监控日志和通知渠道均作为外部系统或模拟接口处理。
+
+\begin{center}
+\begin{tikzpicture}[
+  node distance=0.52cm,
+  box/.style={draw=accent, rounded corners=2pt, fill=lightblue, minimum height=0.85cm, text width=2.35cm, align=center, font=\small},
+  arr/.style={-{Latex[length=2mm]}, thick, draw=accent}
+]
+\node[box] (apply) {提交资源申请};
+\node[box, right=of apply] (check) {资格与信息校验};
+\node[box, right=of check] (queue) {分配或进入候补};
+\node[box, right=of queue] (run) {运行与状态处理};
+\node[box, right=of run] (record) {释放资源并更新记录};
+\draw[arr] (apply) -- (check);
+\draw[arr] (check) -- (queue);
+\draw[arr] (queue) -- (run);
+\draw[arr] (run) -- (record);
+\end{tikzpicture}
+\end{center}
+
+\subsection{复杂度与需求难点}
+
+本项目并非简单预约表单，其复杂性来自多方目标和资源分配决策。与课程要求的对应关系如下。
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{L{3.15cm}Y}
+\toprule
+\textbf{复杂度特征} & \textbf{在本项目中的体现} \\
+\midrule
+多个利益相关者 & 普通学生、紧急任务用户、项目负责人、服务器管理员和实验室老师具有不同目标。 \\
+需求冲突与价值权衡 & 公平性与紧急优先、资源利用率与预留能力、规则简单与精细调度之间存在冲突。 \\
+复杂业务规则 & 配额、优先级、候补、超时、取消、失败、维护和人工调整等规则相互影响。 \\
+多个系统与接口 & 涉及账号、GPU 集群、任务调度器、监控日志和消息通知等外部对象。 \\
+质量属性要求 & 公平性、可解释性、可靠性、安全性、可用性和可追踪性均为关键需求。 \\
+不确定性与变化 & 用户难以准确估计任务时长和显存需求，机器状态和任务结果也可能变化。 \\
+影响与多目标权衡 & 错误分配可能造成资源浪费、实验延期或任务中断，需要平衡成本、性能和进度。 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+项目拟重点研究四类需求难点：第一，公平是依据用户、项目、等待时间还是历史使用量定义；第二，论文截止等紧急理由如何确认并防止滥用；第三，预计时长不准确、任务失败或提前结束时如何重新安排资源；第四，如何向用户解释排名、配额变化和人工调整依据。
+
+\section{利益相关者与需求获取计划}
+
+\subsection{初步利益相关者分析}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{L{2.45cm}L{3.2cm}L{3.5cm}Y}
+\toprule
+\textbf{利益相关者} & \textbf{主要目标} & \textbf{关注点} & \textbf{潜在冲突} \\
+\midrule
+普通 GPU 使用者 & 尽快获得合适资源 & 等待时间、申请简单、状态透明 & 与紧急任务争夺资源 \\
+紧急任务使用者 & 在截止前完成实验 & 优先权和连续运行时间 & 优先权可能损害普通用户公平 \\
+高年级/项目负责人 & 确保项目按计划推进 & 项目整体产出和任务依赖 & 项目优先与个人公平冲突 \\
+服务器管理员 & 提高利用率并保障稳定 & 信息完整、故障处理、人工工作量 & 精细管理会增加维护复杂度 \\
+实验室老师 & 兼顾公平、效率与科研产出 & 制度执行和重点任务保障 & 战略优先与规则一致性冲突 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+以上角色及目标为初步分析，需在需求获取后修订。团队不会将尚未接触的人员意见写成已确认需求，也不会使用真实姓名、账号和项目敏感信息。
+
+\subsection{需求获取方法与证据}
+
+本项目至少采用以下两种需求获取方法。
+
+\textbf{（1）半结构化访谈。}计划访谈 5--7 人，包括 3--4 名经常使用 GPU 的学生、1 名入组时间较短的学生、1 名服务器管理员或协调资源的高年级同学，以及条件允许时的 1 名老师或项目负责人。访谈重点包括当前申请过程、最近一次排队或冲突经历、紧急任务判断、配额接受程度、异常处理方式、公平标准及希望获得的解释。访谈记录匿名化后编号为 \texttt{INT-01}、\texttt{INT-02} 等。
+
+\textbf{（2）文档与现有流程分析。}收集当前预约表、群公告、服务器使用说明、账号权限规则及管理员处理冲突时采用的流程。材料脱敏后编号为 \texttt{DOC-01}、\texttt{DOC-02} 等。若能够获得匿名使用统计，将仅用于分析任务时长、资源利用和等待情况；无法获得时使用明确标注的模拟数据，不冒充真实日志。
+
+时间允许时使用小规模问卷验证问题出现频率和用户对分配规则的偏好。所有需求将保留来源、优先级和状态，形成从证据到需求的初步追踪关系。例如，“展示排队状态”必须关联具体访谈或现行流程证据，而不能仅由团队主观提出。
+
+\section{两个原型方案}
+
+\subsection{原型 A：表格式申请与先到先得}
+
+原型 A 将当前共享表格或人工登记方式系统化。用户填写 GPU 类型、数量、预计时长和任务说明，系统展示资源日历与排队列表；满足基本资格后主要按照提交时间排序，特殊冲突由管理员人工调整并记录原因。该方案的核心假设是：简单、透明且容易理解的规则能够满足多数实验室场景，并降低学习成本。
+
+主要风险是早申请者或长任务可能持续占用资源；紧急任务依赖临时协商；表面上的顺序公平不一定等同于资源结果公平。原型 A 将作为明确、可操作的基线，而不是仅还原一个静态表格。
+
+\subsection{原型 B：配额、优先级与候补调度}
+
+原型 B 综合考虑用户剩余配额、历史使用量、等待时间、任务截止时间、预计时长、项目优先级和资源匹配情况。资源不足时任务进入候补队列，资源释放、任务取消或机器维护后自动更新顺序；系统展示影响排序的主要因素，管理员可以人工调整，但必须填写理由并保留记录。
+
+该方案的核心假设是：在资源紧张和任务差异明显的场景中，受约束且可解释的调度规则可以提高利用率和任务按时完成率。其风险包括申请信息更多、规则理解成本更高、紧急理由可能被滥用，以及复杂规则本身可能引起新的公平争议。因此，优先级因素将在访谈后收缩为 3--5 个真正有证据支持的因素。
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{L{2.3cm}Y Y}
+\toprule
+\textbf{比较维度} & \textbf{原型 A} & \textbf{原型 B} \\
+\midrule
+分配机制 & 申请时间为主，特殊情况人工处理 & 配额、等待时间和任务属性综合决定 \\
+用户成本 & 填写内容少，规则直观 & 需提供更多任务信息并理解优先级 \\
+紧急任务 & 依赖人工协调与插队 & 按受控规则进入优先调度 \\
+管理方式 & 冲突发生后人工处理较多 & 自动化程度较高，但规则维护复杂 \\
+主要风险 & 早申请者或长任务长期占用 & 规则复杂、解释困难或被策略性利用 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{评估方案、进度与分工}
+
+\subsection{初步评估方案}
+
+项目将使用相同角色、任务数据和测试任务比较两个原型。用户测试任务包括：提交普通训练任务、提交有明确截止时间的任务、在资源不足时进入候补、取消或修改申请、查看并解释排队结果，以及处理服务器临时维护。记录任务完成率、操作时间、错误数量、规则理解度和主观接受度。
+
+同时使用同一组模拟用户、GPU 与任务运行两种分配机制，比较平均等待时间、任务按时完成率、GPU 利用率、不同用户获得资源的差异、超时或资源浪费次数和管理员人工调整次数。评估结论将区分已满足、部分满足、未满足和尚未验证的需求，并记录原型评估引出的新增或修改需求。
+
+\subsection{进度安排}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{L{2.2cm}L{4.8cm}Y}
+\toprule
+\textbf{阶段} & \textbf{主要工作} & \textbf{预期成果} \\
+\midrule
+第一次检查前 & 访谈、文档分析、现状流程和利益相关者分析 & 需求获取证据、当前流程、初步需求及来源 \\
+中期评审前 & 需求分析建模、形成基线、制作低保真原型 & 上下文图、流程/状态模型、需求基线、两个原型方案 \\
+第二次检查前 & 实现两个交互原型、设计评估并预测试 & 可演示原型、评估计划、需求--原型--测试追踪矩阵 \\
+最终提交前 & 正式测试、数据分析、需求修订和报告撰写 & 评估证据、方案比较、需求变更、完整报告与演示材料 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\newpage
+
+\subsection{两人团队分工}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{L{2.1cm}L{5.1cm}Y}
+\toprule
+\textbf{成员} & \textbf{主要负责} & \textbf{共同参与} \\
+\midrule
+（待定） & 访谈组织、证据整理、利益相关者分析、当前流程和报告整合 & 需求评审、两个原型测试、正式评估和答辩 \\
+（待定） & 需求清单与模型、两个原型实现、模拟数据和评估结果整理 & 需求获取、原型评审、正式评估和答辩 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+团队将保留访谈、会议、模型、原型和评估的重要版本。两名成员均参与需求获取、原型设计和评估，避免一人只负责编码、另一人只负责文档；最终根据实际投入填写个人贡献比例，并由双方确认。
+
+\subsection{风险与应对}
+
+主要风险及应对措施如下：无法获得真实日志时采用访谈和脱敏流程材料，模拟数据明确标注；调度范围过大时只实现规则和流程模拟，不开发底层集群调度器；用户难以统一定义公平时通过具体冲突场景比较不同标准；为保证两个原型公平比较，使用相同角色、任务和测试条件；所有敏感信息均脱敏，不收集密码、密钥和真实服务器配置。
+
+\subsection{初步需求范围}
+
+下列内容用于约束后续需求获取和原型设计，均为候选需求，需根据访谈与流程证据确认、修改或删除。
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{L{2.15cm}Y}
+\toprule
+\textbf{需求类别} & \textbf{初步范围} \\
+\midrule
+用户申请 & 提交、修改和取消任务；说明 GPU 类型、数量、预计时长、截止时间及替代资源接受程度。 \\
+资源与队列 & 查看资源状态、预约时段、候补位置、预计等待情况和状态变化通知。 \\
+规则与管理 & 设置配额和优先级因素；处理审批、人工调整、超时、维护和异常，并保留操作理由。 \\
+质量属性 & 分配结果应具有公平性和可解释性；权限及操作记录应安全、可靠且可追踪。 \\
+异常场景 & 任务提前结束、运行超时、执行失败、服务器离线、用户取消和紧急申请冲突。 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{拟采用的需求模型与追踪方式}
+
+项目计划使用系统上下文图明确用户、账号系统、GPU 集群、调度器、监控和通知渠道之间的边界；使用泳道流程图描述从申请到资源释放的跨角色过程；使用任务状态模型表示待审核、排队、运行、完成、取消、失败和受维护影响等状态；使用决策表整理配额、优先级及异常处理规则；使用质量属性场景明确公平性、可解释性、可靠性和安全性如何验证。
+
+每条重要需求设置唯一编号，并至少建立“利益相关者目标/证据来源 $\rightarrow$ 系统需求 $\rightarrow$ 原型特性或设计决策 $\rightarrow$ 测试与评估结果”的追踪关系。原型评估后记录需求状态及变更理由，避免仅根据界面演示宣称需求已被满足。
+
+\subsection{数据安全与研究规范}
+
+访谈前说明课程项目用途并获得参与者同意；访谈记录使用角色编号代替姓名；截图和表格移除账号、IP、密钥、项目名称和内部地址；真实日志仅在获得允许且完成脱敏后使用。生成式 AI 可以辅助整理文本、原型代码和测试样例，但不能生成虚假访谈、日志或实验结果，最终报告将记录所用工具、用途、人工核验方式和已知风险。
+
+\section*{预期交付物}
+
+项目最终交付需求工程报告、两个可演示原型、需求获取与分析证据、需求及追踪矩阵、模拟任务数据、评估方案与结果、运行说明、演示视频、个人贡献说明及生成式 AI 使用说明。项目成果重点是形成“业务目标/利益相关者需要--系统需求--原型设计--测试与评估证据”的完整链条，而不是实现生产级 GPU 调度平台。
+
+\end{document}
